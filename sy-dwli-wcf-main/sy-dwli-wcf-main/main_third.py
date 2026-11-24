@@ -109,8 +109,8 @@ def main():
     frame_count = 0
     total_time = 0
 
-    # 在循环开始前添加输出目录设置
-    # 可以根据需要修改路径
+    # Configure output directories before the loop
+    # Adjust the paths as needed
     visual_output_dir = f"/workspace/Deep-OC-SORT/results/visual/{args.visual_folder}/{args.exp_name}"
     detect_output_dir = f"/workspace/Deep-OC-SORT/results/detect/{args.visual_folder}/{args.exp_name}"
 
@@ -138,11 +138,11 @@ def main():
             tracker = tracker_module.ocsort.OCSort(**oc_sort_args, video_name=video_name)
 
             if args.visual:
-                # 为每个视频创建单独的输出目录
+                # Create a separate output directory for each video
                 video_visual_dir = os.path.join(visual_output_dir, video_name)
                 os.makedirs(video_visual_dir, exist_ok=True)
 
-                # 为每个视频创建单独的检测结果输出目录
+                # Create a separate detection-output directory for each video
                 video_detect_dir = os.path.join(detect_output_dir, video_name)
                 os.makedirs(video_detect_dir, exist_ok=True)
 
@@ -153,39 +153,39 @@ def main():
         if pred is None:
             continue
 
-        # ============ 在跟踪之前保存原始检测结果 ============
+        # ============ Save raw detections before tracking ============
         if args.visual:
             try:
-                # 获取当前帧图像
+                # Get the current frame
                 current_frame = np_img[0].numpy()
 
-                # 如果图像格式需要转换 (例如从RGB到BGR)
-                if current_frame.shape[0] == 3:  # 如果是CHW格式
-                    current_frame = current_frame.transpose(1, 2, 0)  # 转为HWC
-                if current_frame.dtype == np.float32:  # 如果是float格式
+                # Convert image format if required (e.g., RGB to BGR)
+                if current_frame.shape[0] == 3:  # If in CHW format
+                    current_frame = current_frame.transpose(1, 2, 0)  # Convert to HWC
+                if current_frame.dtype == np.float32:  # If in float format
                     current_frame = (current_frame * 255).astype(np.uint8)
 
-                # 保存原始检测结果可视化
+                # Save visualization of raw detections
                 if pred is not None and len(pred) > 0:
                     detect_img = current_frame.copy()
 
-                    # 计算缩放比例（与跟踪代码中相同的逻辑）
+                    # Calculate the scale factor using the same logic as the tracker
                     scale = min(
-                        img.shape[2] / current_frame.shape[0],  # img是tensor，current_frame是numpy
+                        img.shape[2] / current_frame.shape[0],  # img is a tensor; current_frame is a NumPy array
                         img.shape[3] / current_frame.shape[1],
                     )
 
                     for detection in pred:
                         x1, y1, x2, y2, conf = detection
 
-                        # 应用缩放修正（与跟踪代码中相同的逻辑）
+                        # Apply scale correction using the same logic as the tracker
                         x1, y1, x2, y2 = x1 / scale, y1 / scale, x2 / scale, y2 / scale
                         x1, y1, x2, y2 = int(x1), int(y1), int(x2), int(y2)
 
-                        # 绘制检测框（用绿色）
+                        # Draw detection boxes in green
                         cv2.rectangle(detect_img, (x1, y1), (x2, y2), (0, 255, 0), 2)
 
-                        # 添加置信度标签
+                        # Add confidence labels
                         label_text = f"{conf:.2f}"
                         cv2.putText(
                             detect_img,
@@ -197,7 +197,7 @@ def main():
                             2,
                         )
 
-                    # 添加帧信息
+                    # Add frame information
                     fps = frame_count / (total_time + 1e-9)
                     cv2.putText(
                         detect_img,
@@ -209,13 +209,13 @@ def main():
                         2,
                     )
 
-                    # 保存检测结果图像
+                    # Save the detection result image
                     video_detect_dir = os.path.join(detect_output_dir, video_name)
                     detect_filename = f"frame_{frame_id:06d}.jpg"
                     detect_path = os.path.join(video_detect_dir, detect_filename)
                     cv2.imwrite(detect_path, detect_img)
                 else:
-                    # 如果没有检测到目标，也保存原图并标注
+                    # Save and annotate the original image even when no objects are detected
                     detect_img = current_frame.copy()
                     fps = frame_count / (total_time + 1e-9)
                     cv2.putText(
@@ -246,25 +246,25 @@ def main():
 
         results[video_name].append((frame_id, tlwhs, ids))
 
-        # ============ 保存跟踪结果可视化 ============
+        # ============ Save tracking visualizations ============
         if args.visual:
             try:
-                # 获取当前帧图像（如果之前没有处理过）
+                # Get the current frame if it has not already been processed
                 if "current_frame" not in locals():
                     current_frame = np_img[0].numpy()
-                    # 如果图像格式需要转换 (例如从RGB到BGR)
-                    if current_frame.shape[0] == 3:  # 如果是CHW格式
-                        current_frame = current_frame.transpose(1, 2, 0)  # 转为HWC
-                    if current_frame.dtype == np.float32:  # 如果是float格式
+                    # Convert image format if required (e.g., RGB to BGR)
+                    if current_frame.shape[0] == 3:  # If in CHW format
+                        current_frame = current_frame.transpose(1, 2, 0)  # Convert to HWC
+                    if current_frame.dtype == np.float32:  # If in float format
                         current_frame = (current_frame * 255).astype(np.uint8)
 
-                # 绘制跟踪结果
+                # Draw tracking results
                 if len(tlwhs) > 0:
                     fps = frame_count / (total_time + 1e-9)
                     result_img = plot_tracking(current_frame, tlwhs, ids, frame_id=frame_id, fps=fps)
                 else:
                     result_img = current_frame.copy()
-                    # 在没有目标时也显示帧信息
+                    # Display frame information even when no objects are present
                     fps = frame_count / (total_time + 1e-9)
                     cv2.putText(
                         result_img,
@@ -276,7 +276,7 @@ def main():
                         2,
                     )
 
-                # 保存跟踪结果图像
+                # Save the tracking result image
                 video_visual_dir = os.path.join(visual_output_dir, video_name)
                 visual_filename = f"frame_{frame_id:06d}.jpg"
                 visual_path = os.path.join(video_visual_dir, visual_filename)

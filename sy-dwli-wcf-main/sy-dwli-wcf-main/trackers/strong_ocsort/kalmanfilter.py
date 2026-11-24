@@ -402,15 +402,15 @@ class KalmanFilterNew(object):
         Messy due to internal logic for kalman filter being messy.
         """
 
-        # 状态向量变换
-        self.x[:2] = m @ self.x[:2] + t  # 位置 [x, y] -> [0, 1]
-        self.x[5:7] = m @ self.x[5:7]  # 速度 [vx, vy] -> [4, 5]
+        # Transform the state vector
+        self.x[:2] = m @ self.x[:2] + t  # Position [x, y] -> [0, 1]
+        self.x[5:7] = m @ self.x[5:7]  # Velocity [vx, vy] -> [4, 5]
 
-        # 协方差矩阵变换
-        self.P[:2, :2] = m @ self.P[:2, :2] @ m.T  # 位置协方差
-        self.P[5:7, 5:7] = m @ self.P[5:7, 5:7] @ m.T  # 速度协方差
+        # Transform the covariance matrix
+        self.P[:2, :2] = m @ self.P[:2, :2] @ m.T  # Position covariance
+        self.P[5:7, 5:7] = m @ self.P[5:7, 5:7] @ m.T  # Velocity covariance
 
-        # 冻结状态处理
+        # Handle frozen state
         if not self.observed and self.attr_saved is not None:
             self.attr_saved["x"][:2] = m @ self.attr_saved["x"][:2] + t
             self.attr_saved["x"][5:7] = m @ self.attr_saved["x"][5:7]

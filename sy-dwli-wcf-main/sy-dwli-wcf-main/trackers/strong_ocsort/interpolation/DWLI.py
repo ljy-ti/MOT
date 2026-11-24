@@ -6,52 +6,52 @@ import argparse
 
 def interpolate_bbox_refined(left_bbox, right_bbox, left_frame, right_frame, curr_frame, gap_size=None):
     """
-    动态权重插值
-    保持原始算法的核心，仅做微小改进
+    Dynamic-weight interpolation
+    Retain the core of the original algorithm with minor refinements
     """
     alpha = (curr_frame - left_frame) / (right_frame - left_frame)
     delta = right_bbox - left_bbox
 
-    # 宽高变化量
+    # Changes in width and height
     delta_w = abs(delta[2])
     delta_h = abs(delta[3])
     eps = 1e-6
 
-    # 原始权重计算
+    # Original weight calculation
     w_weight = delta_w / (delta_w + delta_h + eps)
     h_weight = delta_h / (delta_w + delta_h + eps)
 
-    # 唯一的改进：对大gap进行权重衰减
+    # The only refinement is weight decay for large gaps
     if gap_size and gap_size > 10:
-        # gap越大，权重越趋向于0.5（更保守）
+        # For larger gaps, weights approach 0.5 (more conservative)
         decay_factor = min(1.0, 10.0 / gap_size)
         w_weight = 0.5 + (w_weight - 0.5) * decay_factor
         h_weight = 0.5 + (h_weight - 0.5) * decay_factor
 
-    # 权重向量
+    # Weight vector
     weights = np.array([1.0, 1.0, w_weight, h_weight])
 
-    # 插值
+    # Interpolation
     curr_bbox = left_bbox + weights * alpha * delta
     return curr_bbox
 
 
 def DWLI(txt_path, save_path, n_min=30, n_dti=20, gap_threshold=None):
     """
-    DTI主函数
-    几乎保持原始代码，仅添加gap相关的微调
+    Main DTI function
+    Retain most of the original code with a small gap-dependent adjustment
     """
     seq_txts = sorted(glob.glob(os.path.join(txt_path, "*.txt")))
     os.makedirs(save_path, exist_ok=True)
 
     total_files = len(seq_txts)
-    print(f"开始处理 {total_files} 个文件...")
+    print(f"Processing {total_files} files...")
     if gap_threshold:
-        print(f"使用gap阈值: {gap_threshold}")
+        print(f"Using gap threshold: {gap_threshold}")
 
     for file_idx, seq_txt in enumerate(seq_txts):
         seq_name = os.path.basename(seq_txt)
-        print(f"\r处理进度: [{file_idx+1}/{total_files}] {seq_name}", end="", flush=True)
+        print(f"\rProgress: [{file_idx+1}/{total_files}] {seq_name}", end="", flush=True)
 
         seq_data = np.loadtxt(seq_txt, dtype=np.float64, delimiter=",")
         min_id = int(np.min(seq_data[:, 1]))
@@ -75,7 +75,7 @@ def DWLI(txt_path, save_path, n_min=30, n_dti=20, gap_threshold=None):
                 right_frame = int(frames[i])
                 gap = right_frame - left_frame
 
-                # 使用gap阈值（如果提供）
+                # Use the gap threshold if provided
                 max_gap = gap_threshold if gap_threshold else n_dti
 
                 if 1 < gap < max_gap:
@@ -88,7 +88,7 @@ def DWLI(txt_path, save_path, n_min=30, n_dti=20, gap_threshold=None):
                         )
                         frames_dti[curr_frame] = curr_bbox
 
-            # 插值补上
+            # Fill missing frames by interpolation
             if frames_dti:
                 data_dti = np.zeros((len(frames_dti), 10), dtype=np.float64)
                 for idx, (f, box) in enumerate(frames_dti.items()):
@@ -99,14 +99,14 @@ def DWLI(txt_path, save_path, n_min=30, n_dti=20, gap_threshold=None):
                 tracklet = np.vstack((tracklet, data_dti))
             seq_results.append(tracklet)
 
-        # 合并保存
+        # Merge and save
         if seq_results:
             all_results = np.vstack(seq_results)
             all_results = all_results[all_results[:, 0].argsort()]
             save_seq_txt = os.path.join(save_path, seq_name)
             dti_write_results(save_seq_txt, all_results)
 
-    print(f"\n处理完成！共处理 {total_files} 个文件")
+    print(f"\nFinished processing {total_files} files")
 
 
 def dti_write_results(filename, results):
@@ -119,12 +119,12 @@ def dti_write_results(filename, results):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="异维多权线性插值")
+    parser = argparse.ArgumentParser(description="Dynamic-weight linear interpolation")
 
-    parser.add_argument("--input_dir", type=str, required=True, help="输入目录路径")
-    parser.add_argument("--n_min", type=int, default=30, help="最小轨迹长度，默认30")
-    parser.add_argument("--n_dti", type=int, default=20, help="最大插值间隔，默认20")
-    parser.add_argument("--gap_threshold", type=int, default=None, help="自定义gap阈值，用于DanceTrack优化")
+    parser.add_argument("--input_dir", type=str, required=True, help="Input directory path")
+    parser.add_argument("--n_min", type=int, default=30, help="Minimum trajectory length (default: 30)")
+    parser.add_argument("--n_dti", type=int, default=20, help="Maximum interpolation gap (default: 20)")
+    parser.add_argument("--gap_threshold", type=int, default=None, help="Custom gap threshold for DanceTrack")
 
     args = parser.parse_args()
 
@@ -136,8 +136,8 @@ if __name__ == "__main__":
     output_dir_name = f"{dir_name}_dwli"
     output_dir = os.path.join(parent_dir, output_dir_name, "data")
 
-    print(f"输入目录: {input_dir}")
-    print(f"输出目录: {output_dir}")
+    print(f"Input directory: {input_dir}")
+    print(f"Output directory: {output_dir}")
 
     os.makedirs(os.path.dirname(output_dir), exist_ok=True)
 

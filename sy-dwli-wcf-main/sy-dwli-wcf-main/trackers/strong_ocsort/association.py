@@ -164,29 +164,29 @@ def ciou_batch(bboxes1, bboxes2):
 
 def buffered_box(boxes, b):
     """
-    按比例扩展边界框
+    Expand bounding boxes proportionally
 
     Args:
-        box: 边界框 [x1, y1, x2, y2] 或 [x1, y1, x2, y2, conf] 或其他格式
-        b: 扩展系数（相对于边界框尺寸的比例）
+        box: Bounding box [x1, y1, x2, y2], [x1, y1, x2, y2, conf], or another format
+        b: Expansion factor relative to bounding-box size
 
     Returns:
-        list: 扩展后的边界框 [x1, y1, x2, y2]
+        list: Expanded bounding box [x1, y1, x2, y2]
     """
-    # 只取前4列坐标
+    # Use only the first four coordinate columns
     coords = boxes[:, :4]  # (N, 4)
 
-    # 计算宽度和高度
+    # Calculate width and height
     width = coords[:, 2] - coords[:, 0]  # (N,)
     height = coords[:, 3] - coords[:, 1]  # (N,)
 
-    # 按比例扩展
+    # Expand proportionally
     new_x1 = coords[:, 0] - b * width / 2  # (N,)
     new_y1 = coords[:, 1] - b * height / 2  # (N,)
     new_x2 = coords[:, 2] + b * width / 2  # (N,)
     new_y2 = coords[:, 3] + b * height / 2  # (N,)
 
-    # 组合成新的边界框数组
+    # Combine into a new bounding-box array
     buffered_boxes = np.column_stack([new_x1, new_y1, new_x2, new_y2])
 
     return buffered_boxes
@@ -194,21 +194,21 @@ def buffered_box(boxes, b):
 
 def biou(box1, box2, b=0.2):
     """
-    计算BIoU (Buffered Intersection over Union)
+    Calculate BIoU (Buffered Intersection over Union)
 
     Args:
-        box1: 边界框1 [x1, y1, x2, y2]
-        box2: 边界框2 [x1, y1, x2, y2]
-        b: 扩展系数，默认0.2（扩展20%）
+        box1: Bounding box 1 [x1, y1, x2, y2]
+        box2: Bounding box 2 [x1, y1, x2, y2]
+        b: Expansion factor; default 0.2 (20% expansion)
 
     Returns:
-        float: BIoU值
+        float: BIoU value
     """
-    # 扩展两个边界框
+    # Expand both bounding boxes
     buffered_box1 = buffered_box(box1, b)
     buffered_box2 = buffered_box(box2, b)
 
-    # 计算扩展后的IoU
+    # Calculate IoU after expansion
     return iou_batch(buffered_box1, buffered_box2)
 
 
@@ -290,19 +290,19 @@ def speed_direction_batch(dets, tracks):
 
 def speed_direction_batch_all(dets, tracks):
     """
-    批量计算检测框和跟踪框的速度方向
+    Compute velocity directions for detection and tracking boxes in batches
 
     Args:
-        dets: 检测框 [N, 4] - [x_min, y_min, x_max, y_max]
-        tracks: 跟踪框 [M, 4] - [x_min, y_min, x_max, y_max]
+        dets: Detection boxes [N, 4] - [x_min, y_min, x_max, y_max]
+        tracks: Tracking boxes [M, 4] - [x_min, y_min, x_max, y_max]
 
     Returns:
-        np.array: [5, 2, M, N] - 5个点，每个点有(dy, dx)，M个tracks对N个dets
+        np.array: [5, 2, M, N] - Five points, each with (dy, dx), for M tracks against N detections
                   [0] = center, [1] = lt, [2] = rt, [3] = lb, [4] = rb
     """
     tracks = tracks[..., np.newaxis]
 
-    # 定义所有关键点的坐标提取方式
+    # Define coordinate extraction for all key points
     points = [
         # center: (x_min + x_max) / 2, (y_min + y_max) / 2
         (
@@ -333,41 +333,41 @@ def speed_direction_batch_all(dets, tracks):
 
 def cost_vel_batch(directions, trackers, velocities, detections, previous_obs, vdc_weight):
     """
-    批量计算所有点的速度成本
+    Compute velocity costs for all points in batches
 
     Args:
-        directions: [5, 2, M, N] - 从speed_direction_batch_all返回的方向数组
-        trackers: tracker信息，用于确定scores的形状
-        velocities: [M, 5, 2] - 每个tracker的5个点的速度 [center, lt, rt, lb, rb]
-        其他参数同原函数
+        directions: [5, 2, M, N] - Direction array returned by speed_direction_batch_all
+        trackers: Tracker information used to determine the shape of scores
+        velocities: [M, 5, 2] - Velocities of the five points for each tracker [center, lt, rt, lb, rb]
+        Other parameters are the same as in the original function
 
     Returns:
-        np.array: [5, N, M] - 五个点的成本矩阵 [center, lt, rt, lb, rb]
+        np.array: [5, N, M] - Cost matrices for the five points [center, lt, rt, lb, rb]
     """
-    # 预计算公共部分 - 按照原代码逻辑
+    # Precompute shared terms using the original logic
     valid_mask = np.ones(previous_obs.shape[0])
     valid_mask[np.where(previous_obs[:, 4] < 0)] = 0
 
     scores = np.repeat(detections[:, -1][:, np.newaxis], trackers.shape[0], axis=1)  # [N, M]
 
     results = []
-    # 处理所有五个点 [center=0, lt=1, rt=2, lb=3, rb=4]
+    # Process all five points [center=0, lt=1, rt=2, lb=3, rb=4]
     for i in range(5):
         Y, X = directions[i]  # [M, N]
         inertia_Y, inertia_X = velocities[:, i, 0], velocities[:, i, 1]  # [M]
 
-        # 扩展到匹配形状，按照原代码
+        # Expand to matching shapes as in the original code
         inertia_Y = np.repeat(inertia_Y[:, np.newaxis], Y.shape[1], axis=1)  # [M, N]
         inertia_X = np.repeat(inertia_X[:, np.newaxis], X.shape[1], axis=1)  # [M, N]
         valid_mask_expanded = np.repeat(valid_mask[:, np.newaxis], X.shape[1], axis=1)  # [M, N]
 
-        # 计算角度差
+        # Calculate angular differences
         diff_angle_cos = inertia_X * X + inertia_Y * Y
         diff_angle_cos = np.clip(diff_angle_cos, a_min=-1, a_max=1)
         diff_angle = np.arccos(diff_angle_cos)
         diff_angle = (np.pi / 2.0 - np.abs(diff_angle)) / np.pi
 
-        # 按照原代码逻辑计算成本
+        # Compute costs using the original logic
         angle_diff_cost = (valid_mask_expanded * diff_angle) * vdc_weight
         angle_diff_cost = angle_diff_cost.T  # [N, M]
         angle_diff_cost = angle_diff_cost * scores
@@ -474,24 +474,24 @@ def MhDist_similarity(mahalanobis_distance: np.ndarray, softmax_temp: float = 1.
     mahalanobis_distance[mask] = limit
     mahalanobis_distance = limit - mahalanobis_distance
 
-    # 数值稳定的 softmax
+    # Numerically stable softmax
     scaled = mahalanobis_distance / softmax_temp
 
-    # 沿正确的轴计算 softmax（通常是每行）
+    # Calculate softmax along the appropriate axis (usually each row)
     if mahalanobis_distance.ndim == 1:
-        # 一维数组
+        # One-dimensional array
         max_val = np.max(scaled)
         scaled_shifted = scaled - max_val
         exp_vals = np.exp(scaled_shifted)
         softmax_result = exp_vals / np.sum(exp_vals)
     else:
-        # 二维数组，对每行进行 softmax
+        # Two-dimensional array; apply softmax row-wise
         max_vals = np.max(scaled, axis=1, keepdims=True)
         scaled_shifted = scaled - max_vals
         exp_vals = np.exp(scaled_shifted)
         softmax_result = exp_vals / np.sum(exp_vals, axis=1, keepdims=True)
 
-    # 应用mask
+    # Apply the mask
     softmax_result = np.where(mask, 0, softmax_result)
     return softmax_result
 
@@ -673,7 +673,7 @@ def associate_with_corner(
     if not emb_off:
         emb_cost = None if (trk_embs.shape[0] == 0 or det_embs.shape[0] == 0) else det_embs @ trk_embs.T
 
-    # 启用TCM
+    # Enable TCM
     if tcm_weight is not None:
         score_diff_cost = 0
         score_dif = cal_score_dif_batch(detections, trackers)

@@ -48,16 +48,16 @@ def speed_direction(bbox1, bbox2):
 
 def speed_direction_all(bbox1, bbox2):
     """
-    计算边界框中心点和四个角点的速度方向
+    Calculate velocity directions of the box center and four corners
 
     Args:
-        bbox1, bbox2: 边界框 [x_min, y_min, x_max, y_max]
+        bbox1, bbox2: Bounding boxes [x_min, y_min, x_max, y_max]
 
     Returns:
         tuple: (center, lt, rt, lb, rb)
-               每个都是归一化的速度方向向量 [dy, dx]
+               Each is a normalized velocity direction vector [dy, dx]
     """
-    # 定义所有关键点的坐标 (x1, y1, x2, y2)
+    # Define the coordinates of all key points (x1, y1, x2, y2)
     points = [
         (
             (bbox1[0] + bbox1[2]) / 2.0,
@@ -71,7 +71,7 @@ def speed_direction_all(bbox1, bbox2):
         (bbox1[2], bbox1[3], bbox2[2], bbox2[3]),  # rb
     ]
 
-    # 计算每个点的速度方向
+    # Calculate the velocity direction of each point
     results = []
     for x1, y1, x2, y2 in points:
         dy, dx = y2 - y1, x2 - x1
@@ -177,7 +177,7 @@ class KalmanBoxTracker(object):
         self.track_thresh = track_thresh
 
     """
-    过程噪声
+    Process noise
     """
 
     def process_noise(self, w, h, p=1 / 20, v=1 / 160):
@@ -196,7 +196,7 @@ class KalmanBoxTracker(object):
         return np.diag(np.square(Q))
 
     """
-    状态噪声
+    State noise
     """
 
     def state_noise(self, w, h, p=1 / 20, v=1 / 160):
@@ -215,7 +215,7 @@ class KalmanBoxTracker(object):
         return np.diag(np.square(values))
 
     """
-    观测噪声
+    Measurement noise
     """
 
     def measurement_noise(self, w, h, m=1 / 20, n=1 / 5):
@@ -246,7 +246,7 @@ class KalmanBoxTracker(object):
                     if self.age - i - 1 in self.observations:
                         previous_box = self.observations[self.age - i - 1]
                 if previous_box is None:
-                    # 使用last_observation作为参考
+                    # Use last_observation as the reference
                     previous_box = self.last_observation
                 self.velocities_list = speed_direction_all(previous_box, bbox)
 
@@ -414,10 +414,10 @@ class OCSort(object):
         self.embedding_off = embedding_off
         self.cmc_off = cmc_off
         self.aw_off = aw_off
-        # 调试模式，打印图片
+        # Debug mode: display images
         self.visual = kwargs["args"].visual
         self.track_thresh = kwargs["args"].track_thresh
-        # 启用TCM
+        # Enable TCM
         self.tcm_weight = tcm_weight
 
     def update(self, output_results, img_tensor, img_numpy, tag):
@@ -502,7 +502,7 @@ class OCSort(object):
             else:
                 trk_embs.append(self.trackers[t].get_emb())
                 # if self.visual:
-                #     # 画出预测框
+                #     # Draw predicted boxes
                 #     x1, y1, x2, y2 = map(int, pos[:4])
                 #     cv2.rectangle(img_numpy, (x1, y1), (x2, y2), (255, 255, 255), 2)
         trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
@@ -522,7 +522,7 @@ class OCSort(object):
         k_observations = np.array([k_previous_obs(trk.observations, trk.age, self.delta_t) for trk in self.trackers])
         """
             First round of association
-            一阶段匹配：将高置信度检测框与未匹配的检测框进行匹配
+            First-stage association: match high-confidence detections with unmatched detections
         """
         matched, unmatched_dets, unmatched_trks = associate_with_corner(
             dets,
@@ -624,8 +624,8 @@ class OCSort(object):
         for i in range(len(detections)):
             z[i, :n_dims] = f(detections[i, :]).reshape((-1,))[:n_dims]
         for i in range(len(self.trackers)):
-            # 修改这里：确保展平为一维数组
-            x[i] = self.trackers[i].kf.x[:n_dims].reshape(-1)  # 或者用 .flatten()
+            # Ensure that the result is flattened to a one-dimensional array
+            x[i] = self.trackers[i].kf.x[:n_dims].reshape(-1)  # Alternatively, use .flatten()
             # Note: we assume diagonal covariance matrix
             sigma_inv[i] = np.reciprocal(np.diag(self.trackers[i].kf.P[:n_dims, :n_dims]))
 

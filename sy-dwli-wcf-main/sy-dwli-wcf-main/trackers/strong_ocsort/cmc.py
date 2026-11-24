@@ -90,7 +90,7 @@ class CMCComputer:
 
     def applyEcc_v2(self, frame, mask, tag):
         """Compute the warp matrix from src to dst.
-        利用高斯金字塔加速ecc计算
+        Use a Gaussian pyramid to accelerate ECC computation
         """
         # Define 2x3 or 3x3 matrices and initialize the matrix to identity
         maxLevel = 4
@@ -113,7 +113,7 @@ class CMCComputer:
 
         img_pyr = [frame]
         for i in range(maxLevel - 1):
-            img_pyr.append(cv2.pyrDown(img_pyr[-1]))  # 降采样，宽高默认为原图的1/2
+            img_pyr.append(cv2.pyrDown(img_pyr[-1]))  # Downsample to half the original width and height by default
 
         # handle first frame
         if self.prev_img is None:

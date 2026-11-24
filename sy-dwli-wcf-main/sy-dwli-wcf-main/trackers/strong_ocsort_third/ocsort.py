@@ -130,7 +130,7 @@ class KalmanBoxTracker(object):
         
         
     """
-    过程噪声
+    Process noise
     """
     def process_noise(self, w, h, p=1 / 20, v=1 / 160):
         Q = np.diag(
@@ -149,7 +149,7 @@ class KalmanBoxTracker(object):
         return Q
 
     """
-    状态噪声
+    State noise
     """
     def state_noise(self, w, h, p=1 / 20, v=1 / 160):
         P = np.diag(
@@ -168,7 +168,7 @@ class KalmanBoxTracker(object):
 
 
     """
-    观测噪声
+    Measurement noise
     """
     def measurement_noise(self, w, h, m=1 / 20, n=1/5):
         # std = [

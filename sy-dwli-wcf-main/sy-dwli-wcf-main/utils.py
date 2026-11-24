@@ -8,44 +8,44 @@ from sklearn.gaussian_process.kernels import RBF
 
 
 def write_results_no_score(filename, results):
-    """最终优化版本"""
-    # 预处理：收集所有有效数据
+    """Final optimized version"""
+    # Preprocessing: collect all valid data
     valid_data = []
     print(results)
     for frame_id, tlwhs, track_ids in results:
         for tlwh, track_id in zip(tlwhs, track_ids):
-            if track_id >= 0:  # 只收集有效数据
+            if track_id >= 0:  # Collect valid data only
                 x1, y1, w, h = tlwh
                 valid_data.append((frame_id, track_id, x1, y1, w, h))
 
-    # 批量格式化
+    # Batch formatting
     lines = [
         f"{frame},{track_id},{x1:.1f},{y1:.1f},{w:.1f},{h:.1f},-1,-1,-1,-1"
         for frame, track_id, x1, y1, w, h in valid_data
     ]
 
-    # 一次性写入
+    # Write in a single operation
     with open(filename, "w") as f:
         f.write("\n".join(lines) + "\n")
 
 
 def write_results(filename, results):
-    """最终优化版本"""
-    # 预处理：收集所有有效数据
+    """Final optimized version"""
+    # Preprocessing: collect all valid data
     valid_data = []
     for frame_id, tlwhs, track_ids in results:
         for tlwh, track_id in zip(tlwhs, track_ids):
-            if track_id >= 0:  # 只收集有效数据
+            if track_id >= 0:  # Collect valid data only
                 x1, y1, w, h = tlwh
                 valid_data.append((frame_id, track_id, x1, y1, w, h))
 
-    # 批量格式化
+    # Batch formatting
     lines = [
         f"{frame},{track_id},{x1:.1f},{y1:.1f},{w:.1f},{h:.1f},-1,-1,-1,-1"
         for frame, track_id, x1, y1, w, h in valid_data
     ]
 
-    # 一次性写入
+    # Write in a single operation
     with open(filename, "w") as f:
         f.write("\n".join(lines) + "\n")
 
@@ -67,7 +67,7 @@ def filter_targets(online_targets, aspect_ratio_thresh, min_box_area):
     return online_tlwhs, online_ids
 
 
-# 线性插值
+# Linear interpolation
 def dti(txt_path, save_path, n_min=30, n_dti=20):
     def dti_write_results(filename, results):
         save_format = "{frame},{id},{x1},{y1},{w},{h},{s},-1,-1,-1\n"
@@ -132,7 +132,7 @@ def dti(txt_path, save_path, n_min=30, n_dti=20):
         dti_write_results(save_seq_txt, seq_results)
 
 
-# 高斯插值
+# Gaussian interpolation
 def dti_with_gpr(txt_path, save_path, n_min=30, n_dti=20, tau=1.5):
     def dti_write_results(filename, results):
         save_format = "{frame},{id},{x1},{y1},{w},{h},{s},-1,-1,-1\n"
@@ -147,27 +147,27 @@ def dti_with_gpr(txt_path, save_path, n_min=30, n_dti=20, tau=1.5):
 
     def apply_gpr(input_, tau):
         output_ = []
-        ids = set(input_[:, 1])  # 所有不同的目标ID
+        ids = set(input_[:, 1])  # All distinct target IDs
         for id_ in ids:
             tracks = input_[input_[:, 1] == id_]
             if len(tracks) < 2:
-                output_.extend(tracks.tolist())  # 如果只有一帧，不插值
+                output_.extend(tracks.tolist())  # Do not interpolate a single-frame track
                 continue
 
-            # 动态调整核函数的尺度参数
+            # Dynamically adjust the kernel scale parameter
             len_scale = np.clip(tau * np.log(tau**3 / len(tracks)), tau**-1, tau**2)
 
-            # 初始化GPR
+            # Initialize GPR
             gpr = GPR(kernel=RBF(len_scale, length_scale_bounds="fixed"))
 
-            # 帧号作为输入，bbox各项为输出
-            t = tracks[:, 0].reshape(-1, 1)  # 帧号
+            # Use frame numbers as inputs and bounding-box components as outputs
+            t = tracks[:, 0].reshape(-1, 1)  # Frame number
             x = tracks[:, 2]  # x1
             y = tracks[:, 3]  # y1
             w = tracks[:, 4]  # w
             h = tracks[:, 5]  # h
 
-            # 对每一维坐标分别拟合与预测
+            # Fit and predict each coordinate independently
             gpr.fit(t, x)
             xx = gpr.predict(t)
 
@@ -180,22 +180,22 @@ def dti_with_gpr(txt_path, save_path, n_min=30, n_dti=20, tau=1.5):
             gpr.fit(t, h)
             hh = gpr.predict(t)
 
-            # 组合预测结果
+            # Combine predicted results
             smoothed = np.zeros((len(t), 10), dtype=np.float64)
-            smoothed[:, 0] = t[:, 0]  # 帧号
+            smoothed[:, 0] = t[:, 0]  # Frame number
             smoothed[:, 1] = id_  # track id
             smoothed[:, 2] = xx  # x1
             smoothed[:, 3] = yy  # y1
             smoothed[:, 4] = ww  # w
             smoothed[:, 5] = hh  # h
             smoothed[:, 6] = 1  # score
-            smoothed[:, 7:] = -1  # 其他字段占位
+            smoothed[:, 7:] = -1  # Placeholders for other fields
 
             output_.extend(smoothed.tolist())
 
         return np.array(output_)
 
-    # 读取所有 txt 文件
+    # Read all text files
     seq_txts = sorted(glob.glob(os.path.join(txt_path, "*.txt")))
     for seq_txt in seq_txts:
         seq_name = seq_txt.replace("\\", "/").split("/")[-1]
@@ -225,7 +225,7 @@ def dti_with_gpr(txt_path, save_path, n_min=30, n_dti=20, tau=1.5):
                     else:
                         left_frame = frames[i]
 
-                    # 插值逻辑
+                    # Interpolation logic
                     if 1 < right_frame - left_frame < n_dti:
                         num_bi = int(right_frame - left_frame - 1)
                         right_bbox = tracklet[i, 2:6]
@@ -237,7 +237,7 @@ def dti_with_gpr(txt_path, save_path, n_min=30, n_dti=20, tau=1.5):
                             ) + left_bbox
                             frames_dti[curr_frame] = curr_bbox
 
-                # 构建插值数据
+                # Construct interpolated data
                 num_dti = len(frames_dti.keys())
                 if num_dti > 0:
                     data_dti = np.zeros((num_dti, 10), dtype=np.float64)
@@ -248,15 +248,15 @@ def dti_with_gpr(txt_path, save_path, n_min=30, n_dti=20, tau=1.5):
                         data_dti[n, 6:] = [1, -1, -1, -1]
                     tracklet_dti = np.vstack((tracklet, data_dti))
 
-            # 应用高斯平滑
+            # Apply Gaussian smoothing
             tracklet_dti = apply_gpr(tracklet_dti, tau)
 
-            # 合并入总轨迹
+            # Merge into the complete trajectory
             seq_results = np.vstack((seq_results, tracklet_dti))
 
-        # 保存结果
+        # Save results
         save_seq_txt = os.path.join(save_path, seq_name)
-        seq_results = seq_results[1:]  # 去掉初始化的第一行
+        seq_results = seq_results[1:]  # Remove the initial placeholder row
         seq_results = seq_results[seq_results[:, 0].argsort()]
         dti_write_results(save_seq_txt, seq_results)
 

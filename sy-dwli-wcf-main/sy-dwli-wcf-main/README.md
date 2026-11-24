@@ -1,177 +1,127 @@
+# Enhancing Multi-Object Tracking via Dynamic-Weight Linear Interpolation and Weak Clue Fusion
 
-### Permanent Resource Links (DOI)
+## Overview
 
-To facilitate experimental reproduction, the source code supporting this paper has been deposited in Zenodo and assigned a permanent Digital Object Identifier (DOI).
+This research code addresses multi-object tracking (MOT) in scenes with occlusion, non-rigid motion, and ambiguous association cues. The project builds on OC-SORT and Deep-OC-SORT and includes Dynamic-Weight Linear Interpolation (DWLI), height-modulated IoU (HMIoU), and confidence-state modeling (CST). Pseudo-Depth Association (PDA) is described in the manuscript; its integration into the exact experimental entry point remains to be confirmed. The repository contains multiple development variants, so the default command is not necessarily the full manuscript method.
 
-| Resource Type | Hosting Platform | Permanent Link (DOI) |
-|:---|:---|:---|
-| **Source Code** | Zenodo | [https://doi.org/10.5281/zenodo.17837164](https://doi.org/10.5281/zenodo.17837164) |
----
+## Repository layout
 
----
+- `main.py`: tracking entry point using `trackers/strong_ocsort`.
+- `main_third.py`: alternative tracking entry point.
+- `trackers/strong_ocsort/association.py`: HMIoU and association cost functions.
+- `trackers/strong_ocsort/ocsort.py`: tracking state, confidence and association.
+- `trackers/strong_ocsort/interpolation/DWLI.py`: standalone DWLI post-processing.
+- `dataset.py`: dataset loading and annotation requirements.
+- `external/YOLOX/`, `external/deep-person-reid/`, `external/fast_reid/`: detector and appearance-model dependencies.
+- `external/TrackEval/`: benchmark evaluation.
+- `cache/`: precomputed detections and camera-motion data.
+- `results/gt/seqmaps/`: evaluation sequence lists.
 
+## Installation and environment
 
-## Introduction
-
-This repository contains the official implementation of manuscript **"Enhancing Multi-Object Tracking via Dynamic-Weight Linear Interpolation and Weak Clue Fusion"**.
-
-Multi-object tracking (MOT) in complex dynamic scenarios—such as **DanceTrack**—faces significant challenges, including **non-rigid motion**, **weak spatial cues**, and **appearance homogenization** (unified appearance). Built upon the strong baseline of [Deep-OC-SORT](https://github.com/GerardMaggiolino/Deep-OC-SORT), this project introduces a robust tracking framework that integrates a **Motion Optimization Module** and a **Weak-Cue Fusion Association Strategy**.
-
-Our approach significantly improves robustness against non-linear motion and occlusion, achieving state-of-the-art performance on **DanceTrack**, **MOT17**, and **MOT20** benchmarks among non-transformer methods.
-
-
-
------
-
-## 💡 Technical Deep Dive: Algorithm Implementation
-
-We propose innovations in two key aspects: **State Estimation (Motion Modeling)** and **Data Association**.
-
-
-### 1\. Motion Model Optimization (Kalman Filter Modifications)
-
-  * **Dynamic-Weight Linear Interpolation (DWLI):** This interpolation method is applied during **track recovery** (after a short occlusion or miss). Unlike standard linear interpolation, DWLI assigns a **dynamic, unequal weight** (based on track confidence and age) separately to the position components ($x, y$) and the scale components ($w, h$) during trajectory smoothing.
-
-### 2\. Weak Cue Association Strategy (Cost Matrix Fusion)
-
-These modules are integrated into the association stage to increase robustness when primary cues (IoU, appearance) are ambiguous:
-
-  * **Height-Modulated IoU (HMIoU):** This method modulates the standard IoU cost based on the **relative stability of the target's height**. Height change is generally slower than width change in non-rigid motion. The HMIoU cost function incorporates this height factor to prioritize stable vertical scale matches.
-  * **Confidence State Tracking (CST):** The track's **detection confidence** is modeled as a state input. This allows the association cost to factor in the temporal stability of the detector's score, assisting in tracking through brief periods of weak detection or clutter.
-  * **Pseudo-Depth Association (PDA):** The cost matrix integrates a feature derived from the bounding box's **vertical position** ($y$-coordinate). This "pseudo-depth" leverages the ground plane prior ("objects lower on the screen are closer") to break ties in crowded, low-perspective scenes.
-
------
-
-## Benchmark Results
-
-### DanceTrack Test Set
-
-> Evaluating performance on diverse motion and uniform appearance.
-
-| Method | HOTA | IDF1 | AssA | MOTA |
-|:---|:---:|:---:|:---:|:---:|
-| OC-SORT | 55.1 | 54.2 | 38.0 | 89.4 |
-| Deep OC-SORT | 61.3 | 61.5 | 45.8 | 92.3 |
-| **Ours** | **63.2** | **65.3** | **49.0** | **91.9** |
-
-### MOT17 Test Set
-
-> General pedestrian tracking.
-
-| Method | HOTA | IDF1 | AssA | MOTA |
-|:---|:---:|:---:|:---:|:---:|
-| ByteTrack | 63.1 | 77.3 | 62.0 | 80.3 |
-| Deep OC-SORT | 64.9 | 80.6 | 65.9 | 79.4 |
-| **Ours** | **65.1** | **80.6** | **66.3** | **79.4** |
-
-### MOT20 Test Set
-
-> Extreme density and occlusion.
-
-| Method | HOTA | IDF1 | AssA | MOTA |
-|:---|:---:|:---:|:---:|:---:|
-| ByteTrack | 63.1 | 77.3 | 62.0 | 80.3 |
-| Deep OC-SORT | 64.9 | 80.6 | 65.9 | 79.4 |
-| **Ours** | **65.0** | **80.8** | **67.5** | **76.1** |
-
-
-
-
-
-## 💻 Dependencies and Requirements
-
-To ensure full reproducibility, please install the following environment components:
-
-| Component | Recommended Version | Note |
-|:---|:---|:---|
-| **Python** | 3.8+ | |
-| **PyTorch** | 1.10.1 | Tested with CUDA 11.3 |
-| **CUDA** | 11.3 / 11.8 | Requires GPU for running YOLOX detector |
-| **OS** | Linux (e.g., Ubuntu 20.04) | |
-
-## Installation
-
-This codebase is based on PyTorch.
-
-1.  **Clone the repository**
-
-    ```bash
-    git clone https://github.com/fei528/sy-dwli-wcf.git
-    cd sy-dwli-wcf
-    ```
-
-2.  **Environment Setup**
-
-    ```bash
-    conda create -n mot_tracker python=3.8
-    conda activate mot_tracker
-    pip install -r requirements.txt
-    ```
-
-3.  **Setup**
-
-    ```bash
-    python3 setup.py develop
-    ```
-
-## Data Preparation
-
-Download the datasets from their official websites and organize them as follows:
-
-  * **MOT17 / MOT20:** [MOTChallenge](https://motchallenge.net/)
-  * **DanceTrack:** [DanceTrack](https://dancetrack.github.io/)
-
-<!-- end list -->
-
-```
-datasets
-├── mot
-│   ├── train
-│   │   ├── MOT17-02-DPM
-│   │   ├── ...
-│   ├── test
-│   │   ├── MOT17-01-DPM
-│   │   ├── ...
-├── dancetrack
-│   ├── train
-│   ├── val
-│   ├── test
-```
-
-## Inference & Evaluation
-
-To run the tracker on specific datasets:
-
-**DanceTrack:**
+Clone this repository and work from the actual project directory:
 
 ```bash
-python3 tools/track.py --benchmark dancetrack --eval --exp_name dance_exp --fp16 --fuse
+git clone https://github.com/LJY-TI/MOT.git
+cd MOT/sy-dwli-wcf-main/sy-dwli-wcf-main
 ```
 
-**MOT17:**
+See [DEPENDENCIES.md](DEPENDENCIES.md) for the dependency inventory and installation considerations. The earlier project documentation lists Python 3.8+, PyTorch 1.10.1, CUDA 11.3/11.8 and Linux as reference environment information. These versions have not been revalidated for the current checkout. In particular, check NumPy and PyTorch API compatibility and use a compatible CUDA build.
+
+## Data preparation
+
+Obtain the datasets from their official sources:
+
+- MOT17 and MOT20: https://motchallenge.net/
+- DanceTrack: https://github.com/DanceTrack/DanceTrack
+
+The data loader expects the following directory names (case sensitive) relative to the project root, not a directory called `datasets`:
+
+```text
+data/
+  MOT17/
+    train/
+    test/
+    annotations/
+      val_half.json
+      test.json
+  MOT20/
+    train/
+    test/
+    annotations/
+      val_half.json
+      test.json
+  dancetrack/
+    train/
+    val/
+    test/
+    annotations/
+      val.json
+      test.json
+```
+
+The JSON files must be in the COCO-style format required by `dataset.py`. Downloading raw benchmark images alone is not sufficient. The exact annotation conversion procedure and experimental split configuration still need to be documented and verified.
+
+## Model weights
+
+The code expects detector and appearance-model checkpoints under `external/weights/`. These are not included in the current checkout.
+
+| Purpose | Expected filename |
+| --- | --- |
+| MOT17 test detector | bytetrack_x_mot17.pth.tar |
+| MOT17 validation detector | bytetrack_ablation.pth.tar |
+| MOT20 test detector | bytetrack_x_mot20.tar |
+| DanceTrack detector | ocsort_dance_model.pth.tar |
+| MOT17 test ReID | mot17_sbs_S50.pth |
+| MOT20 test ReID | mot20_sbs_S50.pth |
+| DanceTrack ReID | dance_sbs_S50.pth |
+| MOT17/20 validation ReID | osnet_ain_ms_d_c.pth.tar |
+
+Use the exact authorized checkpoints from the original experiments. See [Deep-OC-SORT](https://github.com/GerardMaggiolino/Deep-OC-SORT), [OC-SORT](https://github.com/noahcao/OC_SORT), and [ByteTrack](https://github.com/ifzhang/ByteTrack) for upstream resources. Exact checkpoint URLs and checksums have not been confirmed. Some detection caches are included, but their completeness and suitability for each split are unverified.
+
+## Tracking and trajectory completion
+
+The following examples use arguments present in the source. They are entry-point examples, not verified commands for reproducing the manuscript tables.
 
 ```bash
-python3 tools/track.py --benchmark mot17 --eval --exp_name mot17_exp --fp16 --fuse
+python main.py --help
+python main.py --dataset mot17 --exp_name mot17_example --asso hmiou
+python main.py --dataset mot20 --exp_name mot20_example --asso hmiou
+python main.py --dataset dance --exp_name dance_example --asso hmiou
 ```
 
-**MOT20:**
+Use `--test_dataset` for the test split. The confidence-association cost can be enabled with `--tcm_weight`; the exact dataset-specific experimental value must be confirmed. By default, the entry point uses ordinary IoU and does not enable this cost. The `--post` flag calls conventional DTI, not DWLI.
+
+For standalone DWLI, pass the experiment directory containing the tracking output `data/` subdirectory:
 
 ```bash
-python3 tools/track.py --benchmark mot20 --eval --exp_name mot20_exp --fp16 --fuse
+python trackers/strong_ocsort/interpolation/DWLI.py --help
+python trackers/strong_ocsort/interpolation/DWLI.py --input_dir results/trackers/MOT17-val/mot17_example
 ```
 
+The script writes an adjacent experiment directory with the suffix `_dwli`. The default minimum trajectory length is 30 and default interpolation gap is 20; these are source defaults, not confirmation of the reported paper configuration. DWLI fills missing frames using observations on both sides of a gap and is a separate trajectory-completion step.
 
-### 📢 Citation Request
+## Evaluation
 
-To ensure the transparency and reproducibility of this research, we urge any reader using this code or any work derived from it to **If you use this code for academic research, please cite the corresponding paper once it is published.** . Your citations will greatly support our academic research and future development.
+TrackEval is available in `external/TrackEval/`. Consult its [documentation](external/TrackEval/Readme.md) and run:
 
+```bash
+python external/TrackEval/scripts/run_mot_challenge.py --help
+```
 
+Provide the appropriate ground-truth directory, sequence map, benchmark split, and tracker output directory. Exact evaluation commands and full-method parameters for the manuscript tables are pending verification. Test-set evaluation may require the corresponding benchmark evaluation service.
 
-## Acknowledgement
+## Known limitations and reproducibility status
 
-This project is deeply indebted to the following open-source works:
+- The source tree is accessible, but end-to-end reproduction has not been verified from a clean environment.
+- Exact detector/ReID checkpoint sources, annotation conversion, full method configuration (including PDA), and table-specific evaluation commands still require confirmation.
+- The entry points contain local visualization paths and development variants. Do not assume every variant represents the final paper method.
+- The manuscript contains the reported benchmark results. No new results have been generated or independently validated by this documentation update.
 
-  * [Deep-OC-SORT](https://github.com/GerardMaggiolino/Deep-OC-SORT)
-  * [OC-SORT](https://github.com/noahcao/OC_SORT)
-  * [ByteTrack](https://github.com/ifzhang/ByteTrack)
-  * [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX)
+## Attribution and archive
+
+The earlier project documentation referenced https://github.com/fei528/sy-dwli-wcf and Zenodo DOI https://doi.org/10.5281/zenodo.17837164. These references are retained for provenance; their precise relationship to this checkout and archive contents still require verification.
+
+This project acknowledges [Deep-OC-SORT](https://github.com/GerardMaggiolino/Deep-OC-SORT), [OC-SORT](https://github.com/noahcao/OC_SORT), [ByteTrack](https://github.com/ifzhang/ByteTrack), [YOLOX](https://github.com/Megvii-BaseDetection/YOLOX), and TrackEval. Respect the included licenses and third-party resource terms.
+
+If you use the research code, please cite the corresponding manuscript once published.

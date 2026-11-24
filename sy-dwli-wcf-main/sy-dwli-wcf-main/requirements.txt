@@ -1,0 +1,11 @@
+# Core Python dependency inventory (not a tested lockfile).
+# Install compatible torch and torchvision builds separately for your CUDA version.
+# See DEPENDENCIES.md for bundled YOLOX, FastReID, torchreid, and TrackEval setup.
+numpy<1.24
+scipy
+opencv-python
+pycocotools
+scikit-learn
+filterpy
+# Optional faster assignment; SciPy fallback is available:
+# lap
